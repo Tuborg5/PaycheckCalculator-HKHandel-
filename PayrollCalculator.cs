@@ -27,11 +27,6 @@ public sealed class PayrollCalculator
     public const decimal AmBidragRate = 0.08m;
 
     /// <summary>
-    /// Monthly tax-exempt allowance (Personfradrag) in DKK (5,000.00 DKK).
-    /// </summary>
-    public const decimal MonthlyTaxDeduction = 5000.00m;
-
-    /// <summary>
     /// Standard income tax (A-skat) rate (38.0%).
     /// </summary>
     public const decimal IncomeTaxRate = 0.38m;
@@ -49,7 +44,7 @@ public sealed class PayrollCalculator
     public const bool DefaultCalculateFritvalgOnGross = false;
 
     /// <summary>
-    /// Calculates the complete monthly payroll breakdown from the worked hours.
+    /// Calculates the complete monthly payroll breakdown from the worked hours and tax exemption.
     /// </summary>
     /// <remarks>
     /// Calculation order of operations:
@@ -73,7 +68,7 @@ public sealed class PayrollCalculator
     ///     <description>
     ///       <b>Taxable Base (A-indkomst):</b>
     ///       <c>IncomeAfterAmBidrag = TotalGrossPay - AmBidrag</c>,
-    ///       <c>TaxableBase = max(0, IncomeAfterAmBidrag - 5000.00)</c>
+    ///       <c>TaxableBase = max(0, IncomeAfterAmBidrag - MonthlyTaxDeduction)</c>
     ///     </description>
     ///   </item>
     ///   <item>
@@ -100,21 +95,24 @@ public sealed class PayrollCalculator
     /// <param name="baseHours">Total base hours worked (must be non-negative).</param>
     /// <param name="eveningHours">Total evening supplement hours worked (must be non-negative).</param>
     /// <param name="holidayHours">Total holiday supplement hours worked (must be non-negative).</param>
+    /// <param name="monthlyTaxDeduction">Monthly tax-exempt allowance / Fradrag in DKK (must be non-negative).</param>
     /// <param name="calculateFritvalgOnGross">
     /// Optional flag indicating whether to calculate the 10% Fritvalgskonto contribution on gross pay (<c>true</c>)
     /// instead of net pay (<c>false</c>). Defaults to <see cref="DefaultCalculateFritvalgOnGross"/>.
     /// </param>
     /// <returns>A <see cref="PayrollResult"/> containing all rounded earnings, deductions, and totals.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when any hours parameter is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when any hours or tax deduction parameter is negative.</exception>
     public PayrollResult Calculate(
         decimal baseHours,
         decimal eveningHours,
         decimal holidayHours,
+        decimal monthlyTaxDeduction,
         bool calculateFritvalgOnGross = DefaultCalculateFritvalgOnGross)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(baseHours);
         ArgumentOutOfRangeException.ThrowIfNegative(eveningHours);
         ArgumentOutOfRangeException.ThrowIfNegative(holidayHours);
+        ArgumentOutOfRangeException.ThrowIfNegative(monthlyTaxDeduction);
 
         // 1. Gross Pay (Bruttoløn)
         decimal baseEarnings = RoundCurrency(baseHours * BaseHourlyRate);
@@ -126,9 +124,10 @@ public sealed class PayrollCalculator
         decimal amBidrag = RoundCurrency(totalGrossPay * AmBidragRate);
 
         // 3. Taxable Base (A-indkomst)
+        decimal roundedTaxDeduction = RoundCurrency(monthlyTaxDeduction);
         decimal incomeAfterAmBidrag = RoundCurrency(totalGrossPay - amBidrag);
-        decimal appliedTaxDeduction = Math.Min(incomeAfterAmBidrag, MonthlyTaxDeduction);
-        decimal taxableBase = RoundCurrency(Math.Max(0m, incomeAfterAmBidrag - MonthlyTaxDeduction));
+        decimal appliedTaxDeduction = Math.Min(incomeAfterAmBidrag, roundedTaxDeduction);
+        decimal taxableBase = RoundCurrency(Math.Max(0m, incomeAfterAmBidrag - roundedTaxDeduction));
 
         // 4. Income Tax (38% A-skat)
         decimal incomeTax = RoundCurrency(taxableBase * IncomeTaxRate);
@@ -151,7 +150,7 @@ public sealed class PayrollCalculator
             TotalGrossPay = totalGrossPay,
             AmBidrag = amBidrag,
             IncomeAfterAmBidrag = incomeAfterAmBidrag,
-            MonthlyTaxDeduction = MonthlyTaxDeduction,
+            MonthlyTaxDeduction = roundedTaxDeduction,
             AppliedTaxDeduction = appliedTaxDeduction,
             TaxableBase = taxableBase,
             IncomeTax = incomeTax,

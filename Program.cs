@@ -19,23 +19,24 @@ public static class Program
 
         PrintHeader();
 
-        decimal baseHours = PromptNonNegativeHours("1. Total base hours worked        : ");
-        decimal eveningHours = PromptNonNegativeHours("2. Evening supplement hours       : ");
-        decimal holidayHours = PromptNonNegativeHours("3. Holiday supplement hours       : ");
+        decimal baseHours = PromptNonNegativeValue("1. Total base hours worked        : ");
+        decimal eveningHours = PromptNonNegativeValue("2. Evening supplement hours       : ");
+        decimal holidayHours = PromptNonNegativeValue("3. Holiday supplement hours       : ");
+        decimal monthlyTaxDeduction = PromptNonNegativeValue("4. Monthly tax exemption (Fradrag): ");
 
         var calculator = new PayrollCalculator();
-        PayrollResult result = calculator.Calculate(baseHours, eveningHours, holidayHours);
+        PayrollResult result = calculator.Calculate(baseHours, eveningHours, holidayHours, monthlyTaxDeduction);
 
         PrintPaySlip(result);
     }
 
     /// <summary>
-    /// Repeatedly prompts the user until a valid, non-negative decimal number of hours is entered.
+    /// Repeatedly prompts the user until a valid, non-negative decimal value is entered.
     /// Supports both comma (<c>,</c>) and period (<c>.</c>) as decimal separators.
     /// </summary>
     /// <param name="prompt">The label displayed to the user.</param>
     /// <returns>A validated non-negative <see cref="decimal"/> value.</returns>
-    public static decimal PromptNonNegativeHours(string prompt)
+    public static decimal PromptNonNegativeValue(string prompt)
     {
         while (true)
         {
@@ -48,19 +49,19 @@ public static class Program
                 continue;
             }
 
-            if (!TryParseHours(rawInput, out decimal hours))
+            if (!TryParseDecimal(rawInput, out decimal value))
             {
                 WriteError("   [Error] Invalid number format. Please enter a valid number using '.' or ',' as the decimal separator.");
                 continue;
             }
 
-            if (hours < 0m)
+            if (value < 0m)
             {
-                WriteError("   [Error] Hours worked cannot be negative. Please enter 0 or a positive value.");
+                WriteError("   [Error] Value cannot be negative. Please enter 0 or a positive value.");
                 continue;
             }
 
-            return hours;
+            return value;
         }
     }
 
@@ -72,7 +73,7 @@ public static class Program
     /// <param name="input">The raw user input string.</param>
     /// <param name="value">When this method returns, contains the parsed decimal value if successful.</param>
     /// <returns><c>true</c> if <paramref name="input"/> was successfully parsed; otherwise, <c>false</c>.</returns>
-    public static bool TryParseHours(string? input, out decimal value)
+    public static bool TryParseDecimal(string? input, out decimal value)
     {
         value = 0m;
         if (string.IsNullOrWhiteSpace(input))
@@ -112,11 +113,10 @@ public static class Program
         Console.WriteLine($"  Evening Supplement    : {FormatCurrency(PayrollCalculator.EveningSupplementRate)}/hour");
         Console.WriteLine($"  Holiday Supplement    : {FormatCurrency(PayrollCalculator.HolidaySupplementRate)}/hour");
         Console.WriteLine($"  AM-bidrag             : {PayrollCalculator.AmBidragRate:P1}");
-        Console.WriteLine($"  Monthly Tax Deduction : {FormatCurrency(PayrollCalculator.MonthlyTaxDeduction)}");
         Console.WriteLine($"  A-skat                : {PayrollCalculator.IncomeTaxRate:P1}");
         Console.WriteLine($"  Fritvalgskonto        : {PayrollCalculator.FritvalgskontoRate:P1}");
         Console.WriteLine("----------------------------------------------------------------------");
-        Console.WriteLine("Enter worked hours below (both '.' and ',' are accepted):");
+        Console.WriteLine("Enter worked hours and tax exemption below (both '.' and ',' are accepted):");
         Console.WriteLine();
     }
 
